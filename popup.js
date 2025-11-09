@@ -21,7 +21,7 @@ $(document).ready(function() {
     $(countrySelect).select2({
       placeholder: 'Select a country',
       allowClear: true,
-      minimumResultsForSearch: Infinity, // Disable search for small lists
+      // minimumResultsForSearch: Infinity, // Disable search for small lists
       width: '100%',
       dropdownAutoWidth: true,
       dropdownParent: $(document.body) // Ensure proper z-index handling
@@ -42,6 +42,9 @@ $(document).ready(function() {
   // Update operators when country changes
   $(countrySelect).on('change', function() {
     const country = this.value;
+    
+    // Save the country selection
+    chrome.storage.local.set({ country: country });
     
     // Clear and disable operator dropdown
     $(operatorSelect).empty().append('<option value=""></option>').val('').trigger('change');
@@ -67,13 +70,33 @@ $(document).ready(function() {
 
   // Handle operator selection change
   $(operatorSelect).on('change', function() {
+    const operator = this.value;
+    // Save the operator selection
+    if (operator) {
+      chrome.storage.local.set({ operator: operator });
+    }
     updateUI();
   });
 
   // Load the current state
   chrome.storage.local.get(['isRunning', 'country', 'operator'], function(result) {
     isRunning = result.isRunning || false;
-    updateUI();
+    
+    // Set the country if it exists in storage
+    if (result.country) {
+      $(countrySelect).val(result.country).trigger('change');
+      
+      // After a small delay to allow the country change to process,
+      // set the operator if it exists in storage
+      setTimeout(() => {
+        if (result.operator) {
+          $(operatorSelect).val(result.operator).trigger('change');
+        }
+        updateUI();
+      }, 100);
+    } else {
+      updateUI();
+    }
   });
 
   startBtn.addEventListener('click', function() {
