@@ -1,0 +1,150 @@
+$(document).ready(function() {
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const statusDiv = document.getElementById('status');
+  const countrySelect = document.getElementById('country');
+  const operatorSelect = document.getElementById('operator');
+  let isRunning = false;
+
+  // Operator data based on country
+  const operatorsByCountry = {
+    'us': ['AT&T', 'Verizon', 'T-Mobile', 'Sprint'],
+    'uk': ['O2', 'Vodafone', 'EE', 'Three'],
+    'ca': ['Rogers', 'Bell', 'Telus', 'Freedom'],
+    'au': ['Telstra', 'Optus', 'Vodafone AU'],
+    'in': ['Airtel', 'Vodafone Idea', 'Jio', 'BSNL']
+  };
+
+  // Initialize Select2 with better configuration
+  $(document).ready(function() {
+    // Initialize country select
+    $(countrySelect).select2({
+      placeholder: 'Select a country',
+      allowClear: true,
+      minimumResultsForSearch: Infinity, // Disable search for small lists
+      width: '100%',
+      dropdownAutoWidth: true,
+      dropdownParent: $(document.body) // Ensure proper z-index handling
+    });
+
+    // Initialize operator select
+    $(operatorSelect).select2({
+      placeholder: 'Select an operator',
+      disabled: true,
+      allowClear: true,
+      minimumResultsForSearch: Infinity, // Disable search for small lists
+      width: '100%',
+      dropdownAutoWidth: true,
+      dropdownParent: $(document.body) // Ensure proper z-index handling
+    });
+  });
+
+  // Update operators when country changes
+  $(countrySelect).on('change', function() {
+    const country = this.value;
+    
+    // Clear and disable operator dropdown
+    $(operatorSelect).empty().append('<option value=""></option>').val('').trigger('change');
+    $(operatorSelect).prop('disabled', !country);
+    
+    if (country && operatorsByCountry[country]) {
+      // Add new options
+      const options = operatorsByCountry[country].map(operator => ({
+        id: operator.toLowerCase().replace(/\s+/g, '-'),
+        text: operator
+      }));
+      
+      $(operatorSelect).select2({
+        data: [{id: '', text: 'Select Operator'}, ...options],
+        placeholder: 'Select an operator',
+        allowClear: true
+      });
+    }
+    
+    // Update UI state
+    updateUI();
+  });
+
+  // Handle operator selection change
+  $(operatorSelect).on('change', function() {
+    updateUI();
+  });
+
+  // Load the current state
+  chrome.storage.local.get(['isRunning', 'country', 'operator'], function(result) {
+    isRunning = result.isRunning || false;
+    updateUI();
+  });
+
+  startBtn.addEventListener('click', function() {
+    const country = countrySelect.value;
+    const operator = operatorSelect.value;
+    
+    if (!country) {
+      statusDiv.textContent = 'Please select a country';
+      statusDiv.style.color = 'red';
+      return;
+    }
+    
+    if (!operator) {
+      statusDiv.textContent = 'Please select an operator';
+      statusDiv.style.color = 'red';
+      return;
+    }
+    
+    console.log('Selected Country:', country);
+    console.log('Selected Operator:', operator);
+    
+    isRunning = true;
+    chrome.storage.local.set({
+      isRunning: true,
+      country: country,
+      operator: operator
+    });
+    
+    updateUI();
+    statusDiv.textContent = 'Started with ' + 
+      countrySelect.options[countrySelect.selectedIndex].text + ' - ' + 
+      operatorSelect.options[operatorSelect.selectedIndex].text;
+    statusDiv.style.color = 'green';
+    
+    // Send message to content script to start interaction
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      chrome.tabs.sendMessage(tabs[0].id, {
+        action: 'startInteraction',
+        country: country,
+        operator: operator
+      });
+    });
+  });
+
+  stopBtn.addEventListener('click', function() {
+    isRunning = false;
+    chrome.storage.local.set({isRunning: false});
+    updateUI();
+    
+    // Send message to content script to stop interaction
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      chrome.tabs.sendMessage(tabs[0].id, {action: 'stopInteraction'});
+    });
+  });
+
+  function updateUI() {
+    // Enable/disable start button based on selection
+    const country = $(countrySelect).val();
+    const operator = $(operatorSelect).val();
+    startBtn.disabled = !country || !operator || isRunning;
+    stopBtn.disabled = !isRunning;
+    if (isRunning) {
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      statusDiv.textContent = 'Running...';
+      statusDiv.style.color = 'green';
+    } else {
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      statusDiv.textContent = 'Stopped';
+      statusDiv.style.color = 'red';
+    }
+  }
+});

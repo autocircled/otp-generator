@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link href="lib/select2.min.css" rel="stylesheet" />
+  <script src="lib/jquery-3.6.0.min.js"></script>
+  <script src="lib/select2.min.js"></script>
+  <style>
+    /* Reset default styles */
+    .select2-container {
+      width: 100% !important;
+      margin-bottom: 10px;
+      outline: none;
+    }
+    
+    /* Input field */
+    .select2-container--default .select2-selection--single {
+      height: 36px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      outline: none;
+    }
+    
+    /* Selected value */
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+      line-height: 34px;
+      padding-left: 12px;
+      color: #444;
+      position: absolute;
+  }
+    
+    /* Dropdown arrow */
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+      height: 34px;
+      right: 8px;
+    }
+    
+    /* Dropdown menu */
+    .select2-dropdown {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    /* Dropdown options */
+    .select2-results__option {
+      padding: 8px 12px;
+    }
+    
+    /* Hover state */
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    
+    /* Focus state */
+    .select2-container--default.select2-container--focus .select2-selection--single {
+      border-color: #4CAF50;
+    }
+    body {
+      width: 220px;
+      padding: 15px;
+      font-family: Arial, sans-serif;
+    }
+    select, button {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      cursor: pointer;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+    }
+    .form-group {
+      margin-bottom: 10px;
+    }
+    label {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 14px;
+    }
+    #stopBtn {
+      background-color: #f44336;
+    }
+    #status {
+      margin-top: 10px;
+      padding: 5px;
+      text-align: center;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="form-group">
+    <label for="country">Country:</label>
+    <select id="country">
+      <option value="">Select Country</option>
+      <option value="us">United States</option>
+      <option value="uk">United Kingdom</option>
+      <option value="ca">Canada</option>
+      <option value="au">Australia</option>
+      <option value="in">India</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label for="operator">Operator:</label>
+    <select id="operator" disabled>
+      <option value="">Select Operator</option>
+      <!-- Will be populated by JavaScript -->
+    </select>
+  </div>
+  <button id="startBtn">Start</button>
+  <button id="stopBtn" disabled>Stop</button>
+  <div id="status">Ready</div>
+  <script src="popup.js"></script>
+</body>
+</html>
