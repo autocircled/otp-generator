@@ -17,6 +17,12 @@ $(document).ready(function() {
 
   // Initialize Select2 with better configuration
   $(document).ready(function() {
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      console.log(tabs);
+      chrome.tabs.sendMessage(tabs[0].id, {
+        action: 'loadData',
+      });
+    });
     // Initialize country select
     $(countrySelect).select2({
       placeholder: 'Select a country',
