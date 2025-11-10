@@ -1,4 +1,5 @@
 $(document).ready(function() {
+  const otpWrapper = document.querySelector('.otp-wrapper');
   const startBtn = document.getElementById('startBtn');
   const stopBtn = document.getElementById('stopBtn');
   const statusDiv = document.getElementById('status');
@@ -85,9 +86,13 @@ $(document).ready(function() {
   });
 
   // Load the current state
-  chrome.storage.local.get(['isRunning', 'country', 'operator'], function(result) {
+  chrome.storage.local.get(['apiKey', 'isRunning', 'country', 'operator'], function(result) {
+    apiKey = result.apiKey || '';
     isRunning = result.isRunning || false;
-    
+    if(!apiKey){
+      otpWrapper.style.display = 'none';
+      return;
+    }
     // Set the country if it exists in storage
     if (result.country) {
       $(countrySelect).val(result.country).trigger('change');
@@ -165,13 +170,13 @@ $(document).ready(function() {
     startBtn.disabled = !country || !operator || isRunning;
     stopBtn.disabled = !isRunning;
     if (isRunning) {
-      startBtn.disabled = true;
-      stopBtn.disabled = false;
+      startBtn.style.display = 'none';
+      stopBtn.style.display = 'block';
       statusDiv.textContent = 'Running...';
       statusDiv.style.color = 'green';
     } else {
-      startBtn.disabled = false;
-      stopBtn.disabled = true;
+      startBtn.style.display = 'block';
+      stopBtn.style.display = 'none';
       statusDiv.textContent = 'Stopped';
       statusDiv.style.color = 'red';
     }

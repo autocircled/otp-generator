@@ -6,6 +6,50 @@
   <script src="lib/jquery-3.6.0.min.js"></script>
   <script src="lib/select2.min.js"></script>
   <style>
+    body {
+      padding: 0;
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
+    select, button {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      cursor: pointer;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+    }
+    #root {
+      width: 380px;
+      height: 380px;
+      display: flex;
+      flex-direction: column;
+      max-height: 530px;
+    }
+    h2 {
+      margin: 0;
+      font-size: 16px;
+    }
+    .header {
+      background: linear-gradient(0deg, rgb(18, 18, 18) 2.42%, rgb(26, 43, 40) 100%);
+      color: white;
+      -webkit-box-align: center;
+      align-items: center;
+      height: 50px;
+      display: flex;
+      flex-direction: row;
+      gap: 8px;
+      padding: 10px 16px;
+    }
+    .main {
+      padding: 10px 16px;
+    }
     /* Reset default styles */
     .select2-container {
       /* width: 100% !important; */
@@ -57,25 +101,7 @@
     .select2-container--default.select2-container--focus .select2-selection--single {
       border-color: #4CAF50;
     }
-    body {
-      width: 220px;
-      padding: 15px;
-      font-family: Arial, sans-serif;
-    }
-    select, button {
-      width: 100%;
-      padding: 8px;
-      margin: 5px 0;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      box-sizing: border-box;
-    }
-    button {
-      cursor: pointer;
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-    }
+    
     .form-group {
       margin-bottom: 10px;
     }
@@ -93,30 +119,58 @@
       text-align: center;
       font-weight: bold;
     }
+    .options-cta {
+      text-align: center;
+      position: absolute;
+      background: #ffffff;
+      width: 100%;
+      left: 0;
+      bottom: 0;
+    }
+    .options-cta a {
+      color: #4CAF50;
+      text-decoration: none;
+      font-weight: 700;
+    }
+    .options-cta a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
-  <div class="form-group">
-    <label for="country">Country:</label>
-    <select id="country">
-      <option value="">Select Country</option>
-      <option value="us">United States</option>
-      <option value="uk">United Kingdom</option>
-      <option value="ca">Canada</option>
-      <option value="au">Australia</option>
-      <option value="in">India</option>
-    </select>
+  <div id="root">
+    <div class="header">
+      <h2>OTP Generator</h2>
+    </div>
+    <div class="main">
+      <div class="otp-wrapper">
+        <div class="form-group">
+          <label for="country">Country:</label>
+          <select id="country">
+            <option value="">Select Country</option>
+            <option value="us">United States</option>
+            <option value="uk">United Kingdom</option>
+            <option value="ca">Canada</option>
+            <option value="au">Australia</option>
+            <option value="in">India</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="operator">Operator:</label>
+          <select id="operator" disabled>
+            <option value="">Select Operator</option>
+            <!-- Will be populated by JavaScript -->
+          </select>
+        </div>
+        <button id="startBtn">Start</button>
+        <button id="stopBtn" disabled>Stop</button>
+        <div id="status">Ready</div>
+      </div>
+      <div class="options-cta">
+        <p>Visit <a href="options.html" target="_blank">Setting Page</a> to Update API Key</p>
+      </div>
+    </div>
   </div>
-  <div class="form-group">
-    <label for="operator">Operator:</label>
-    <select id="operator" disabled>
-      <option value="">Select Operator</option>
-      <!-- Will be populated by JavaScript -->
-    </select>
-  </div>
-  <button id="startBtn">Start</button>
-  <button id="stopBtn" disabled>Stop</button>
-  <div id="status">Ready</div>
   <script src="popup.js"></script>
 </body>
 </html>
