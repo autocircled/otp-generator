@@ -7,82 +7,116 @@ $(document).ready(function() {
   const operatorSelect = document.getElementById('operator');
   let isRunning = false;
 
-  // Operator data based on country
-  const operatorsByCountry = {
-    'us': ['AT&T', 'Verizon', 'T-Mobile', 'Sprint'],
-    'uk': ['O2', 'Vodafone', 'EE', 'Three'],
-    'ca': ['Rogers', 'Bell', 'Telus', 'Freedom'],
-    'au': ['Telstra', 'Optus', 'Vodafone AU'],
-    'in': ['Airtel', 'Vodafone Idea', 'Jio', 'BSNL']
-  };
-
   // Initialize Select2 with better configuration
-  $(document).ready(function() {
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      console.log(tabs);
-      chrome.tabs.sendMessage(tabs[0].id, {
-        action: 'loadData',
-      });
-    });
-    // Initialize country select
-    $(countrySelect).select2({
-      placeholder: 'Select a country',
-      allowClear: true,
-      // minimumResultsForSearch: Infinity, // Disable search for small lists
-      width: '100%',
-      dropdownAutoWidth: true,
-      dropdownParent: $(document.body) // Ensure proper z-index handling
-    });
-
-    // Initialize operator select
-    $(operatorSelect).select2({
-      placeholder: 'Select an operator',
-      disabled: true,
-      allowClear: true,
-      minimumResultsForSearch: Infinity, // Disable search for small lists
-      width: '100%',
-      dropdownAutoWidth: true,
-      dropdownParent: $(document.body) // Ensure proper z-index handling
-    });
+  
+  $(countrySelect).select2({
+    placeholder: 'Select a country',
+    allowClear: true,
+    width: '100%',
+    dropdownAutoWidth: true,
+    dropdownParent: $(document.body) // Ensure proper z-index handling
   });
 
-  // Update operators when country changes
-  $(countrySelect).on('change', function() {
-    const country = this.value;
+  $(operatorSelect).select2({
+    placeholder: 'Select an operator',
+    disabled: true,
+    allowClear: true,
+    // minimumResultsForSearch: Infinity, // Disable search for small lists
+    width: '100%',
+    dropdownAutoWidth: true,
+    dropdownParent: $(document.body) // Ensure proper z-index handling
+  });
+
+  // Load data when popup opens
+  loadData();
+
+  function loadData() {
+    chrome.storage.local.get(['countries', 'operators'], function(result) {
+      if (result.countries && result.operators) {
+        updateCountryDropdown(result.countries);
+      } else {
+        // If no data in storage, fetch it
+        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+          chrome.tabs.sendMessage(tabs[0].id, {
+            action: 'loadData'
+          });
+        });
+      }
+    });
+  }
+
+  // Function to update country dropdown
+  function updateCountryDropdown(countries) {
+    // Clear existing options
+    countrySelect.innerHTML = '';
     
-    // Save the country selection
-    chrome.storage.local.set({ country: country });
+    // Add default option
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Select a country';
+    countrySelect.appendChild(defaultOption);
     
-    // Clear and disable operator dropdown
-    $(operatorSelect).empty().append('<option value=""></option>').val('').trigger('change');
-    $(operatorSelect).prop('disabled', !country);
-    
-    if (country && operatorsByCountry[country]) {
-      // Add new options
-      const options = operatorsByCountry[country].map(operator => ({
-        id: operator.toLowerCase().replace(/\s+/g, '-'),
-        text: operator
-      }));
+    // Add country options
+    countries.forEach(country => {
+      const option = document.createElement('option');
+      option.value = country.id;
+      option.textContent = `${country.name} (${country.phone_code})`;
+      countrySelect.appendChild(option);
+    });
+    $(countrySelect).on('change', function() {
+      console.log('Change event was triggered!');
+      console.log('Selected value:', $(this).val());
+      updateOperatorDropdown($(this).val());
+    });
+    // Reinitialize Select2
+    $(countrySelect).trigger('change');
+  }
+
+  // Function to update operator dropdown
+  function updateOperatorDropdown(countryId) {
+    console.log("tryingt to update operator dropdown")
+    chrome.storage.local.get(['operators'], function(result) {
+      const operators = result.operators || [];
+      const countryOperators = operators.filter(op => op.country_id == countryId);
       
-      $(operatorSelect).select2({
-        data: [{id: '', text: 'Select Operator'}, ...options],
-        placeholder: 'Select an operator',
-        allowClear: true
+      // Clear existing options
+      operatorSelect.innerHTML = '';
+      
+      // Add default option
+      const defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.textContent = 'Select an operator';
+      operatorSelect.appendChild(defaultOption);
+      
+      // Add operator options
+      countryOperators.forEach(operator => {
+        const option = document.createElement('option');
+        option.value = operator.id;
+        option.textContent = operator.name;
+        operatorSelect.appendChild(option);
+      });
+      
+      // Enable/disable operator select
+      operatorSelect.disabled = countryOperators.length === 0;
+      $(operatorSelect).on('change', function() {
+        console.log('Change event was triggered!');
+        console.log('Selected value:', $(this).val());
+        updateUI();
+      });
+      $(operatorSelect).trigger('change');
+    });
+  }
+
+  // Listen for data updates from background
+  chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+    if (request.action === 'dataFetched') {
+      updateCountryDropdown(request.data.data.countries);
+      // You can also update operators if needed
+      chrome.storage.local.set({
+        countries: request.data.data.countries,
+        operators: request.data.data.operators
       });
     }
-    
-    // Update UI state
-    updateUI();
-  });
-
-  // Handle operator selection change
-  $(operatorSelect).on('change', function() {
-    const operator = this.value;
-    // Save the operator selection
-    if (operator) {
-      chrome.storage.local.set({ operator: operator });
-    }
-    updateUI();
   });
 
   // Load the current state
@@ -110,9 +144,11 @@ $(document).ready(function() {
     }
   });
 
-  startBtn.addEventListener('click', function() {
-    const country = countrySelect.value;
-    const operator = operatorSelect.value;
+  $(startBtn).on('click', function() {
+    const country = $(countrySelect).val();
+    const operator = $(operatorSelect).val();
+    console.log("country", country);
+    console.log("operator", operator);
     
     if (!country) {
       statusDiv.textContent = 'Please select a country';
@@ -152,7 +188,7 @@ $(document).ready(function() {
     });
   });
 
-  stopBtn.addEventListener('click', function() {
+  $(stopBtn).on('click', function() {
     isRunning = false;
     chrome.storage.local.set({isRunning: false});
     updateUI();

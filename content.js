@@ -3,26 +3,27 @@ let interactionInterval;
 let formSubmitted = false;
 
 // Listen for messages from the popup
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-  console.log(request);
+chrome.runtime.onMessage.addListener(function(request) {
   if (request.action === 'startInteraction') {
+    console.log(request);
     checkForExistingModal();
     setupModalCloser();
-    startInteraction();
+    startInteraction(request.country, request.operator);
   } else if (request.action === 'stopInteraction') {
     stopInteraction();
   } else if (request.action === 'dataFetched') {
-    handleFetchedData(request.data);
+    // handleFetchedData(request.data);
+    console.log("Ami akane in content.js");
   } else if (request.action === 'loadData') {
-    loadData();
+    chrome.storage.local.get(['apiKey'], function(result) {
+      const API_KEY = result.apiKey;
+      const apiUrl = `https://smsgen.net/api/init/${API_KEY}`;
+      fetchDataFromAPI(apiUrl)
+    });
   }
 });
 
-function loadData() {
-  console.log('Loading data...');
-}
-
-function startInteraction() {
+function startInteraction(country, operator) {
   console.log('isInteracting', isInteracting);
   if (isInteracting) return;
   
@@ -30,7 +31,7 @@ function startInteraction() {
   console.log('Starting interaction...');
   const randomDelay = Math.floor(Math.random() * 10) + 25;
     console.log('Waiting for:', randomDelay, 'seconds');
-  // Example: Interact with the page every 25 - 35 seconds
+  // Interact with the page every 25 - 35 seconds
   interactionInterval = setTimeout(() => {
     // If form was already submitted and modal hasn't been closed yet, skip
     if (formSubmitted) {
@@ -40,50 +41,52 @@ function startInteraction() {
 
     
 
-    // Example: Click on a button with specific text
-    // clickButtonWithText('Click me');
-    // operator_param = f"&operator_id={operator_id}" if operator_id else ""
-    // Example: Fetch phone number
-    const API_KEY = 'd4ff8ce1-9792-4c91-ab69-fb1139b2c0f2';
-    const country_id = '119';
-    const operator_id = '360';
-    let ph_no;
-    fetch(`https://smsgen.net/api/get-number/${API_KEY}?country_id=${country_id}&operator_id=${operator_id}`)
-      .then(response => response.json())
-      .then(data => {
-        ph_no = data.data.phone_number;
-        const phoneInput = document.querySelector('input#contact-information-phone');
-        const saveButton = Array.from(document.querySelectorAll('button[type="submit"]'))
-          .find(button => button.textContent.trim() === 'Save');
-
-        if (phoneInput && saveButton) {
-          console.log('Form detected! Auto-filling...');
-          console.log('Phone number:', ph_no);
-          
-          phoneInput.value = ph_no;
-          phoneInput.dispatchEvent(new Event('change', { bubbles: true }));
-          
-          // Optional: Add slight delay for any form validation
-          setTimeout(() => {
-            if (saveButton && !saveButton.disabled) {
-              saveButton.click();
-              console.log('Save button clicked!');
-              formSubmitted = true; // Mark form as submitted
-            } else if (saveButton && saveButton.disabled) {
-              console.log('Save button is disabled, cannot click');
-            } else {
-              console.log('Save button not found');
-            }
-            formSubmitted = true; // Mark form as submitted
-          }, 5000);
-        
-        } else {
-          console.log("Form elements not found");
-        }
-      });    
+    // Fetch phone number
+    chrome.storage.local.get(['apiKey'], function(result) {
+      const API_KEY = result.apiKey;
+      const country_id = country;
+      const operator_id = operator;
+      fetch_phone_number(API_KEY, country_id, operator_id);
+    });
   }, randomDelay * 1000);
 }
 
+function fetch_phone_number(API_KEY, country_id, operator_id) {
+  let ph_no;
+  fetch(`https://smsgen.net/api/get-number/${API_KEY}?country_id=${country_id}&operator_id=${operator_id}`)
+  .then(response => response.json())
+  .then(data => {
+    ph_no = data.data.phone_number;
+    const phoneInput = document.querySelector('input#contact-information-phone');
+    const saveButton = Array.from(document.querySelectorAll('button[type="submit"]'))
+      .find(button => button.textContent.trim() === 'Save');
+
+    if (phoneInput && saveButton) {
+      console.log('Form detected! Auto-filling...');
+      console.log('Phone number:', ph_no);
+      
+      phoneInput.value = ph_no;
+      phoneInput.dispatchEvent(new Event('change', { bubbles: true }));
+      
+      // Optional: Add slight delay for any form validation
+      setTimeout(() => {
+        if (saveButton && !saveButton.disabled) {
+          saveButton.click();
+          console.log('Save button clicked!');
+          formSubmitted = true; // Mark form as submitted
+        } else if (saveButton && saveButton.disabled) {
+          console.log('Save button is disabled, cannot click');
+        } else {
+          console.log('Save button not found');
+        }
+        formSubmitted = true; // Mark form as submitted
+      }, 5000);
+    
+    } else {
+      console.log("Form elements not found");
+    }
+  });
+}
 
 function setupModalCloser() {
   const observer = new MutationObserver((mutations) => {
@@ -155,13 +158,6 @@ function checkForExistingModal() {
   }
 }
 
-
-
-
-
-
-
-
 function stopInteraction() {
   if (!isInteracting) return;
   
@@ -198,6 +194,7 @@ function clickButtonWithText(buttonText) {
 }
 
 function fetchDataFromAPI(apiUrl) {
+  console.log("fetching data from api", apiUrl);
   // Send a message to the background script to fetch data
   chrome.runtime.sendMessage({
     action: 'fetchData',
@@ -205,9 +202,21 @@ function fetchDataFromAPI(apiUrl) {
   });
 }
 
-function handleFetchedData(data) {
-  console.log('Data received from API:', data);
+function handleFetchedData(apiData) {
+  console.log('Data received from API:', apiData);
+  const countries = apiData.data.countries;
+  const operators = apiData.data.operators;
   
+  // Store countries and operators in local storage
+  chrome.storage.local.set({ 
+    countries: countries,
+    operators: operators
+  }, function() {
+    console.log('Data stored successfully');
+    // After storing, update the dropdowns
+    updateCountryDropdown();
+  });
+
   // Example: Update the page with the fetched data
   // This is just an example - modify according to your needs
   const resultDiv = document.createElement('div');
@@ -218,7 +227,7 @@ function handleFetchedData(data) {
   resultDiv.style.background = '#f0f0f0';
   resultDiv.style.border = '1px solid #ccc';
   resultDiv.style.zIndex = '9999';
-  resultDiv.textContent = 'Data: ' + JSON.stringify(data).substring(0, 100) + '...';
+  resultDiv.textContent = 'Data: ' + JSON.stringify(apiData).substring(0, 100) + '...';
   
   document.body.appendChild(resultDiv);
   
@@ -228,6 +237,32 @@ function handleFetchedData(data) {
   }, 5000);
 }
 
+function updateCountryDropdown() {
+  chrome.storage.local.get(['countries'], function(result) {
+    const countries = result.countries || [];
+    const countrySelect = document.getElementById('country');
+    
+    // Clear existing options
+    countrySelect.innerHTML = '';
+    
+    // Add default option
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Select a country';
+    countrySelect.appendChild(defaultOption);
+    
+    // Add country options
+    countries.forEach(country => {
+      const option = document.createElement('option');
+      option.value = country.id;
+      option.textContent = `${country.name} (${country.phone_code})`;
+      countrySelect.appendChild(option);
+    });
+    
+    // Initialize Select2 after updating options
+    $(countrySelect).select2();
+  });
+}
 // Load the saved state when the content script starts
 chrome.storage.local.get(['isRunning'], function(result) {
   if (result.isRunning) {
