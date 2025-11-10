@@ -26,24 +26,21 @@ function startInteraction() {
   
   isInteracting = true;
   console.log('Starting interaction...');
-  const randomDelay = Math.floor(Math.random() * 10) + 25;
-    console.log('Waiting for:', randomDelay, 'seconds');
-  // Interact with the page every 25 - 35 seconds
-  interactionInterval = setTimeout(() => {
-    // If form was already submitted and modal hasn't been closed yet, skip
-    if (formSubmitted) {
-      console.log('Waiting for modal to be closed...');
-      return;
-    }
-
-    // Fetch phone number
-    chrome.storage.local.get(['apiKey', 'country', 'operator'], function(result) {
+  chrome.storage.local.get(['apiKey', 'country', 'operator', 'delay'], function(result) {
       const API_KEY = result.apiKey;
       const country_id = result.country;
       const operator_id = result.operator;
-      fetch_phone_number(API_KEY, country_id, operator_id);
-    });
-  }, randomDelay * 1000);
+      const delay = result.delay;
+      interactionInterval = setTimeout(() => {
+        // If form was already submitted and modal hasn't been closed yet, skip
+        if (formSubmitted) {
+          console.log('Waiting for modal to be closed...');
+          return;
+        }
+
+        fetch_phone_number(API_KEY, country_id, operator_id);
+      }, delay * 1000);
+    });  
 }
 
 function fetch_phone_number(API_KEY, country_id, operator_id) {

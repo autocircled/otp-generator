@@ -1,8 +1,9 @@
 // Saves options to chrome.storage
 function saveOptions() {
     const apiKey = document.getElementById('apiKey').value.trim();
+    const delay = document.getElementById('delay').value.trim();
     
-    chrome.storage.local.set({ apiKey: apiKey }, function() {
+    chrome.storage.local.set({ apiKey: apiKey, delay: delay }, function() {
         // Update status to let user know options were saved
         const status = document.getElementById('status');
         status.textContent = 'Options saved successfully!';
@@ -18,9 +19,12 @@ function saveOptions() {
 
 // Restores the previously saved API key
 function restoreOptions() {
-    chrome.storage.local.get(['apiKey'], function(result) {
+    chrome.storage.local.get(['apiKey', 'delay'], function(result) {
         if (result.apiKey) {
             document.getElementById('apiKey').value = result.apiKey;
+        }
+        if (result.delay) {
+            document.getElementById('delay').value = result.delay;
         }
     });
 }
