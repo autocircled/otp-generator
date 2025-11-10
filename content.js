@@ -5,15 +5,13 @@ let formSubmitted = false;
 // Listen for messages from the popup
 chrome.runtime.onMessage.addListener(function(request) {
   if (request.action === 'startInteraction') {
-    console.log(request);
     checkForExistingModal();
     setupModalCloser();
-    startInteraction(request.country, request.operator);
+    startInteraction();
   } else if (request.action === 'stopInteraction') {
     stopInteraction();
   } else if (request.action === 'dataFetched') {
-    // handleFetchedData(request.data);
-    console.log("Ami akane in content.js");
+    handleFetchedData(request.data);
   } else if (request.action === 'loadData') {
     chrome.storage.local.get(['apiKey'], function(result) {
       const API_KEY = result.apiKey;
@@ -23,8 +21,7 @@ chrome.runtime.onMessage.addListener(function(request) {
   }
 });
 
-function startInteraction(country, operator) {
-  console.log('isInteracting', isInteracting);
+function startInteraction() {
   if (isInteracting) return;
   
   isInteracting = true;
@@ -39,13 +36,11 @@ function startInteraction(country, operator) {
       return;
     }
 
-    
-
     // Fetch phone number
-    chrome.storage.local.get(['apiKey'], function(result) {
+    chrome.storage.local.get(['apiKey', 'country', 'operator'], function(result) {
       const API_KEY = result.apiKey;
-      const country_id = country;
-      const operator_id = operator;
+      const country_id = result.country;
+      const operator_id = result.operator;
       fetch_phone_number(API_KEY, country_id, operator_id);
     });
   }, randomDelay * 1000);
@@ -62,8 +57,7 @@ function fetch_phone_number(API_KEY, country_id, operator_id) {
       .find(button => button.textContent.trim() === 'Save');
 
     if (phoneInput && saveButton) {
-      console.log('Form detected! Auto-filling...');
-      console.log('Phone number:', ph_no);
+      console.log('Auto-filling By:', ph_no);
       
       phoneInput.value = ph_no;
       phoneInput.dispatchEvent(new Event('change', { bubbles: true }));

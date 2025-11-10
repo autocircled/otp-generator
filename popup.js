@@ -181,9 +181,7 @@ $(document).ready(function() {
     // Send message to content script to start interaction
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
       chrome.tabs.sendMessage(tabs[0].id, {
-        action: 'startInteraction',
-        country: country,
-        operator: operator
+        action: 'startInteraction'
       });
     });
   });
