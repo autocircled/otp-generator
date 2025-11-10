@@ -1,8 +1,6 @@
 let isInteracting = false;
 let interactionInterval;
 let formSubmitted = false;
-let counter = 0;
-const phoneNOArray = ['+959769494838', '+959783806043', '+959750128934', '+959750996184', '+959780060465', '+959767747618', '+959785568238', '+959780214060', '+959790989491', '+959777333238'];
 
 // Listen for messages from the popup
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
@@ -30,9 +28,9 @@ function startInteraction() {
   
   isInteracting = true;
   console.log('Starting interaction...');
-  const randomDelay = Math.floor(Math.random() * 10) + 30;
+  const randomDelay = Math.floor(Math.random() * 10) + 25;
     console.log('Waiting for:', randomDelay, 'seconds');
-  // Example: Interact with the page every 30 - 40 seconds
+  // Example: Interact with the page every 25 - 35 seconds
   interactionInterval = setTimeout(() => {
     // If form was already submitted and modal hasn't been closed yet, skip
     if (formSubmitted) {
@@ -44,40 +42,45 @@ function startInteraction() {
 
     // Example: Click on a button with specific text
     // clickButtonWithText('Click me');
-    
+    // operator_param = f"&operator_id={operator_id}" if operator_id else ""
     // Example: Fetch phone number
-    // fetchDataFromAPI('https://api.example.com/data');
-    const ph_no = phoneNOArray[counter];
-    counter++;
-    const phoneInput = document.querySelector('input#contact-information-phone');
-    const saveButton = Array.from(document.querySelectorAll('button[type="submit"]'))
-      .find(button => button.textContent.trim() === 'Save');
+    const API_KEY = 'd4ff8ce1-9792-4c91-ab69-fb1139b2c0f2';
+    const country_id = '119';
+    const operator_id = '360';
+    let ph_no;
+    fetch(`https://smsgen.net/api/get-number/${API_KEY}?country_id=${country_id}&operator_id=${operator_id}`)
+      .then(response => response.json())
+      .then(data => {
+        ph_no = data.data.phone_number;
+        const phoneInput = document.querySelector('input#contact-information-phone');
+        const saveButton = Array.from(document.querySelectorAll('button[type="submit"]'))
+          .find(button => button.textContent.trim() === 'Save');
 
-    if (phoneInput && saveButton) {
-      console.log('Form detected! Auto-filling...');
-      console.log('Phone number:', ph_no, counter);
-      console.log('Save button:', saveButton);
-      
-      phoneInput.value = ph_no;
-      phoneInput.dispatchEvent(new Event('change', { bubbles: true }));
-      
-      // Optional: Add slight delay for any form validation
-      setTimeout(() => {
-        if (saveButton && !saveButton.disabled) {
-          saveButton.click();
-          console.log('Save button clicked!');
-          formSubmitted = true; // Mark form as submitted
-        } else if (saveButton && saveButton.disabled) {
-          console.log('Save button is disabled, cannot click');
+        if (phoneInput && saveButton) {
+          console.log('Form detected! Auto-filling...');
+          console.log('Phone number:', ph_no);
+          
+          phoneInput.value = ph_no;
+          phoneInput.dispatchEvent(new Event('change', { bubbles: true }));
+          
+          // Optional: Add slight delay for any form validation
+          setTimeout(() => {
+            if (saveButton && !saveButton.disabled) {
+              saveButton.click();
+              console.log('Save button clicked!');
+              formSubmitted = true; // Mark form as submitted
+            } else if (saveButton && saveButton.disabled) {
+              console.log('Save button is disabled, cannot click');
+            } else {
+              console.log('Save button not found');
+            }
+            formSubmitted = true; // Mark form as submitted
+          }, 5000);
+        
         } else {
-          console.log('Save button not found');
+          console.log("Form elements not found");
         }
-        formSubmitted = true; // Mark form as submitted
-      }, 5000);
-    
-    } else {
-      console.log("Form elements not found");
-    }
+      });    
   }, randomDelay * 1000);
 }
 
