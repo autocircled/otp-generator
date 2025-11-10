@@ -32,6 +32,7 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; object-src 'self'"
   },
+  "options_page": "options.html",
   "icons": {
     "16": "/images/get_started16.png",
     "32": "/images/get_started32.png",
