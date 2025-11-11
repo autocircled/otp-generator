@@ -21,34 +21,88 @@ chrome.runtime.onMessage.addListener(function(request) {
   }
 });
 
+async function clickEditButton() {
+  // Find the personal details section first
+  const personalDetails = document.querySelector('[data-testid="personal-details"]');
+  if (!personalDetails) {
+    console.log('Personal details section not found');
+    return false;
+  }
+  
+  // Find the Edit button within the personal details section
+  const editButton = personalDetails.querySelector('button.bds-c-btn');
+  
+  if (editButton) {
+    console.log('Clicking Edit button in personal details...');
+    editButton.click();
+    return true;
+  }
+  
+  console.log('Edit button not found in personal details');
+  return false;
+}
+
 function startInteraction() {
   if (isInteracting) return;
   
   isInteracting = true;
   console.log('Starting interaction...');
+  
+  // First try to click the Edit button
+  const editButtonClicked = clickEditButton();
+  
   chrome.storage.local.get(['apiKey', 'country', 'operator', 'delay'], function(result) {
-      const API_KEY = result.apiKey;
-      const country_id = result.country;
-      const operator_id = result.operator;
-      const delay = result.delay;
-      interactionInterval = setTimeout(() => {
-        // If form was already submitted and modal hasn't been closed yet, skip
-        if (formSubmitted) {
-          console.log('Waiting for modal to be closed...');
-          return;
-        }
+    const API_KEY = result.apiKey;
+    const country_id = result.country;
+    const operator_id = result.operator;
+    const delay = result.delay;
+    
+    // If we clicked the Edit button, wait a moment for the form to appear
+    const initialDelay = editButtonClicked ? 2000 : 0;
+    
+    interactionInterval = setTimeout(() => {
+      // If form was already submitted and modal hasn't been closed yet, skip
+      if (formSubmitted) {
+        console.log('Waiting for modal to be closed...');
+        return;
+      }
 
-        fetch_phone_number(API_KEY, country_id, operator_id);
-      }, delay * 1000);
-    });  
+      fetch_phone_number(API_KEY, country_id, operator_id);
+    }, initialDelay + (delay * 1000));
+  });  
 }
 
-function fetch_phone_number(API_KEY, country_id, operator_id) {
-  let ph_no;
-  fetch(`https://smsgen.net/api/get-number/${API_KEY}?country_id=${country_id}&operator_id=${operator_id}`)
-  .then(response => response.json())
-  .then(data => {
-    ph_no = data.data.phone_number;
+async function fetch_phone_number(API_KEY, country_id, operator_id, retryCount = 0) {
+  const maxRetries = 5;
+  const baseDelay = 1000; // 1 second base delay
+  
+  try {
+    const response = await fetch(`https://smsgen.net/api/get-number/${API_KEY}?country_id=${country_id}&operator_id=${operator_id}`);
+    
+    // Handle rate limiting (429) with retry
+    if (response.status === 429) {
+      if (retryCount < maxRetries) {
+        const retryAfter = response.headers.get('Retry-After') || Math.min(baseDelay * Math.pow(2, retryCount), 30000);
+        console.log(`Rate limited. Retrying in ${retryAfter}ms... (Attempt ${retryCount + 1}/${maxRetries})`);
+        
+        await new Promise(resolve => setTimeout(resolve, retryAfter));
+        return fetch_phone_number(API_KEY, country_id, operator_id, retryCount + 1);
+      } else {
+        throw new Error('Max retry attempts reached due to rate limiting');
+      }
+    }
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    const ph_no = data.data?.phone_number;
+    
+    if (!ph_no) {
+      throw new Error('No phone number received from API');
+    }
+    
     const phoneInput = document.querySelector('input#contact-information-phone');
     const saveButton = Array.from(document.querySelectorAll('button[type="submit"]'))
       .find(button => button.textContent.trim() === 'Save');
@@ -59,31 +113,45 @@ function fetch_phone_number(API_KEY, country_id, operator_id) {
       phoneInput.value = ph_no;
       phoneInput.dispatchEvent(new Event('change', { bubbles: true }));
       
-      // Optional: Add slight delay for any form validation
-      setTimeout(() => {
-        if (saveButton && !saveButton.disabled) {
-          saveButton.click();
-          console.log('Save button clicked!');
-          formSubmitted = true; // Mark form as submitted
-        } else if (saveButton && saveButton.disabled) {
-          console.log('Save button is disabled, cannot click');
-        } else {
-          console.log('Save button not found');
-        }
-        formSubmitted = true; // Mark form as submitted
-      }, 5000);
-    
+      // Wait for form validation
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      if (saveButton && !saveButton.disabled) {
+        saveButton.click();
+        console.log('Save button clicked!');
+        formSubmitted = true;
+      } else if (saveButton && saveButton.disabled) {
+        console.log('Save button is disabled, cannot click');
+      } else {
+        console.log('Save button not found');
+      }
     } else {
       console.log("Form elements not found");
     }
-  });
+  } catch (error) {
+    console.error('Error in fetch_phone_number:', error);
+    
+    if (attempt < maxAttempts) {
+      const delay = Math.min(baseDelay * Math.pow(2, attempt), 30000);
+      console.log(`Retrying in ${delay}ms... (Attempt ${attempt + 1}/${maxAttempts})`);
+    }
+    if (retryCount < maxRetries) {
+      const delay = Math.min(baseDelay * Math.pow(2, retryCount), 30000);
+      console.log(`Retrying in ${delay}ms... (Attempt ${retryCount + 1}/${maxRetries})`);
+      
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return fetch_phone_number(API_KEY, country_id, operator_id, retryCount + 1);
+    } else {
+      console.error('Max retry attempts reached');
+      // You might want to implement additional error handling here
+    }
+  }
 }
 
 function setupModalCloser() {
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       mutation.addedNodes.forEach((node) => {
-        console.log(node);
         if (node.nodeType === 1) { // Element node
           const closeButton = node.querySelector && node.querySelector('.bds-c-modal__close-button');
           if (closeButton) {
@@ -127,8 +195,14 @@ function setupModalCloser() {
                             node.querySelector('div[role="banner"].error-message');
           
           if (errorBanner) {
-            console.log('Error banner detected, reloading page...');
-            window.location.reload();
+            console.log('Error banner detected, starting new session...');
+            // window.location.reload();
+            setTimeout(() => {
+              formSubmitted = false;
+              isInteracting = false;
+              console.log('Ready for next form submission');
+              startInteraction();
+            }, 5000);
           }
         }
       }
