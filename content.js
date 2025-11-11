@@ -25,12 +25,15 @@ async function clickEditButton() {
   // Find the personal details section first
   const personalDetails = document.querySelector('[data-testid="personal-details"]');
   if (!personalDetails) {
-    console.log('Personal details section not found');
     return false;
   }
   
-  // Find the Edit button within the personal details section
-  const editButton = personalDetails.querySelector('button.bds-c-btn');
+  // Find all buttons and filter for the one with exact 'Edit' text
+  const buttons = Array.from(personalDetails.querySelectorAll('button.bds-c-btn'));
+  const editButton = buttons.find(btn => {
+    const label = btn.querySelector('.bds-c-btn__idle-content__label span');
+    return label && label.textContent.trim() === 'Edit';
+  });
   
   if (editButton) {
     console.log('Clicking Edit button in personal details...');
