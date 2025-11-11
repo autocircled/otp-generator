@@ -83,7 +83,7 @@ function setupModalCloser() {
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       mutation.addedNodes.forEach((node) => {
-        // console.log(node);
+        console.log(node);
         if (node.nodeType === 1) { // Element node
           const closeButton = node.querySelector && node.querySelector('.bds-c-modal__close-button');
           if (closeButton) {
@@ -113,6 +113,32 @@ function setupModalCloser() {
       childList: true,
       subtree: true
     });
+  });
+
+  // Observe for error banner and reload if found
+  const errorBannerObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (!mutation.addedNodes) return;
+      
+      for (const node of mutation.addedNodes) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          // Check if the node or any of its children is the error banner
+          const errorBanner = node.matches('div[role="banner"].error-message') ? node : 
+                            node.querySelector('div[role="banner"].error-message');
+          
+          if (errorBanner) {
+            console.log('Error banner detected, reloading page...');
+            window.location.reload();
+          }
+        }
+      }
+    });
+  });
+
+  // Start observing the document body for error banners
+  errorBannerObserver.observe(document.body, {
+    childList: true,
+    subtree: true
   });
 
   const portalObserver = new MutationObserver((mutations) => {
