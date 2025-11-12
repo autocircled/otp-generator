@@ -89,8 +89,7 @@ function setupWebsiteSpecificLogic() {
   
 
 async function fetch_phone_number(API_KEY, country_id, operator_id, retryCount = 0) {
-  const maxRetries = 5;
-  const baseDelay = 1000; // 1 second base delay
+  const maxRetries = 100;
   
   try {
     const response = await fetch(`http://localhost:3099/api/call`, {
@@ -105,28 +104,21 @@ async function fetch_phone_number(API_KEY, country_id, operator_id, retryCount =
       }),
     });
     
-    // Handle rate limiting (429) with retry
-    if (response.status === 429) {
-      if (retryCount < maxRetries) {
-        const retryAfter = response.headers.get('Retry-After') || Math.min(baseDelay * Math.pow(2, retryCount), 30000);
-        console.log(`Rate limited. Retrying in ${retryAfter}ms... (Attempt ${retryCount + 1}/${maxRetries})`);
-        
-        await new Promise(resolve => setTimeout(resolve, retryAfter));
-        return fetch_phone_number(API_KEY, country_id, operator_id, retryCount + 1);
-      } else {
-        throw new Error('Max retry attempts reached due to rate limiting');
-      }
-    }
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
     const data = await response.json();
-    const ph_no = data.data?.phone_number;
+    let ph_no = data.phone_number;
     
     if (!ph_no) {
-      throw new Error('No phone number received from API');
+      if (retryCount < maxRetries) {
+        console.log(`No phone number received. Retrying... (Attempt ${retryCount + 1}/${maxRetries})`);
+        return fetch_phone_number(API_KEY, country_id, operator_id, retryCount + 1);
+      } else {
+        throw new Error('Max retry attempts reached. No phone number received after multiple attempts');
+      }
     }
     const currentWebsite = getCurrentWebsite();
     console.log(`Starting interaction on: ${currentWebsite}`);
@@ -142,18 +134,12 @@ async function fetch_phone_number(API_KEY, country_id, operator_id, retryCount =
   } catch (error) {
     console.error('Error in fetch_phone_number:', error);
     
+    console.error('Error in fetch_phone_number:', error);
     if (retryCount < maxRetries) {
-      const delay = Math.min(baseDelay * Math.pow(2, retryCount), 30000);
-      console.log(`Retrying in ${delay}ms... (Attempt ${retryCount + 1}/${maxRetries})`);
-    }
-    if (retryCount < maxRetries) {
-      const delay = Math.min(baseDelay * Math.pow(2, retryCount), 30000);
-      console.log(`Retrying in ${delay}ms... (Attempt ${retryCount + 1}/${maxRetries})`);
-      
-      await new Promise(resolve => setTimeout(resolve, delay));
+      console.log(`Retrying after error... (Attempt ${retryCount + 1}/${maxRetries})`);
       return fetch_phone_number(API_KEY, country_id, operator_id, retryCount + 1);
     } else {
-      console.error('Max retry attempts reached');
+      console.error('Max retry attempts reached after error');
       // You might want to implement additional error handling here
     }
   }
