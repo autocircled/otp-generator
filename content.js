@@ -93,7 +93,17 @@ async function fetch_phone_number(API_KEY, country_id, operator_id, retryCount =
   const baseDelay = 1000; // 1 second base delay
   
   try {
-    const response = await fetch(`https://smsgen.net/api/get-number/${API_KEY}?country_id=${country_id}&operator_id=${operator_id}`);
+    const response = await fetch(`http://localhost:3099/api/call`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        api_key: API_KEY,
+        country_id: country_id,
+        operator_id: operator_id,
+      }),
+    });
     
     // Handle rate limiting (429) with retry
     if (response.status === 429) {
