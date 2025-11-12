@@ -5,8 +5,7 @@ let formSubmitted = false;
 // Listen for messages from the popup
 chrome.runtime.onMessage.addListener(function(request) {
   if (request.action === 'startInteraction') {
-    checkForExistingModal();
-    setupModalCloser();
+    setupWebsiteSpecificLogic();
     startInteraction();
   } else if (request.action === 'stopInteraction') {
     stopInteraction();
@@ -38,30 +37,29 @@ async function clickEditButton() {
   if (editButton) {
     console.log('Clicking Edit button in personal details...');
     editButton.click();
+    await new Promise(resolve => setTimeout(resolve, 5000));
     return true;
   }
-  
-  console.log('Edit button not found in personal details');
+
   return false;
+}
+
+function getCurrentWebsite() {
+  // Returns the main domain without subdomains (e.g., 'example' from 'www.example.com')
+  const hostname = window.location.hostname;
+  // Remove 'www.' if present and get the main domain
+  const domain = hostname.replace('www.', '');
+  return domain;
 }
 
 function startInteraction() {
   if (isInteracting) return;
-  
   isInteracting = true;
-  console.log('Starting interaction...');
-  
-  // First try to click the Edit button
-  const editButtonClicked = clickEditButton();
-  
-  chrome.storage.local.get(['apiKey', 'country', 'operator', 'delay'], function(result) {
+
+  chrome.storage.local.get(['apiKey', 'country', 'operator'], function(result) {
     const API_KEY = result.apiKey;
     const country_id = result.country;
     const operator_id = result.operator;
-    const delay = result.delay;
-    
-    // If we clicked the Edit button, wait a moment for the form to appear
-    const initialDelay = editButtonClicked ? 2000 : 0;
     
     interactionInterval = setTimeout(() => {
       // If form was already submitted and modal hasn't been closed yet, skip
@@ -71,9 +69,24 @@ function startInteraction() {
       }
 
       fetch_phone_number(API_KEY, country_id, operator_id);
-    }, initialDelay + (delay * 1000));
+    }, 5000);
   });  
 }
+
+function setupWebsiteSpecificLogic() {
+  const currentWebsite = getCurrentWebsite();
+    console.log(`Starting interaction on: ${currentWebsite}`);
+    
+    // Apply website-specific logic
+    if (currentWebsite.includes('foodpanda') || currentWebsite.includes('foodora')) {
+      checkForExistingModal();
+      setupModalCloser();
+    } else {
+      console.log(`No specific handler for ${currentWebsite}`);
+      // Add other website handlers here as needed
+    }
+}
+  
 
 async function fetch_phone_number(API_KEY, country_id, operator_id, retryCount = 0) {
   const maxRetries = 5;
@@ -105,38 +118,23 @@ async function fetch_phone_number(API_KEY, country_id, operator_id, retryCount =
     if (!ph_no) {
       throw new Error('No phone number received from API');
     }
+    const currentWebsite = getCurrentWebsite();
+    console.log(`Starting interaction on: ${currentWebsite}`);
     
-    const phoneInput = document.querySelector('input#contact-information-phone');
-    const saveButton = Array.from(document.querySelectorAll('button[type="submit"]'))
-      .find(button => button.textContent.trim() === 'Save');
-
-    if (phoneInput && saveButton) {
-      console.log('Auto-filling By:', ph_no);
-      
-      phoneInput.value = ph_no;
-      phoneInput.dispatchEvent(new Event('change', { bubbles: true }));
-      
-      // Wait for form validation
-      await new Promise(resolve => setTimeout(resolve, 5000));
-      
-      if (saveButton && !saveButton.disabled) {
-        saveButton.click();
-        console.log('Save button clicked!');
-        formSubmitted = true;
-      } else if (saveButton && saveButton.disabled) {
-        console.log('Save button is disabled, cannot click');
-      } else {
-        console.log('Save button not found');
-      }
+    // Apply website-specific logic
+    if (currentWebsite.includes('foodpanda') || currentWebsite.includes('foodora')) {
+      await foodpanda(ph_no);
     } else {
-      console.log("Form elements not found");
+      console.log(`No specific handler for ${currentWebsite}`);
+      // Add other website handlers here as needed
     }
+
   } catch (error) {
     console.error('Error in fetch_phone_number:', error);
     
-    if (attempt < maxAttempts) {
-      const delay = Math.min(baseDelay * Math.pow(2, attempt), 30000);
-      console.log(`Retrying in ${delay}ms... (Attempt ${attempt + 1}/${maxAttempts})`);
+    if (retryCount < maxRetries) {
+      const delay = Math.min(baseDelay * Math.pow(2, retryCount), 30000);
+      console.log(`Retrying in ${delay}ms... (Attempt ${retryCount + 1}/${maxRetries})`);
     }
     if (retryCount < maxRetries) {
       const delay = Math.min(baseDelay * Math.pow(2, retryCount), 30000);
@@ -151,6 +149,37 @@ async function fetch_phone_number(API_KEY, country_id, operator_id, retryCount =
   }
 }
 
+async function foodpanda(ph_no) {
+  // First try to click the Edit button
+  await clickEditButton();
+
+  const phoneInput = document.querySelector('input#contact-information-phone');
+  const saveButton = Array.from(document.querySelectorAll('button[type="submit"]'))
+    .find(button => button.textContent.trim() === 'Save');
+
+  if (phoneInput && saveButton) {
+    console.log('Auto-filling By:', ph_no);
+    
+    phoneInput.value = ph_no;
+    phoneInput.dispatchEvent(new Event('change', { bubbles: true }));
+    
+    // Wait for form validation
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    if (saveButton && !saveButton.disabled) {
+      saveButton.click();
+      console.log('Save button clicked!');
+      formSubmitted = true;
+    } else if (saveButton && saveButton.disabled) {
+      console.log('Save button is disabled, cannot click');
+    } else {
+      console.log('Save button not found');
+    }
+  } else {
+    console.log("Form elements not found");
+  }
+}
+
 function setupModalCloser() {
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
@@ -158,19 +187,20 @@ function setupModalCloser() {
         if (node.nodeType === 1) { // Element node
           const closeButton = node.querySelector && node.querySelector('.bds-c-modal__close-button');
           if (closeButton) {
-            setTimeout(() => {
-              console.log('Modal appeared, attempting to close...');
-              closeButton.click();
-              console.log('Modal closed automatically');
-  
-              // Reset the flag to allow form fillup again
+            chrome.storage.local.get(['delay'], function(result) {
+              const delay = result.delay;
               setTimeout(() => {
+                console.log('Modal appeared, attempting to close...');
+                closeButton.click();
+                console.log('Modal closed automatically');
+    
+                // Reset the flag to allow form fillup again
                 formSubmitted = false;
                 isInteracting = false;
                 console.log('Ready for next form submission');
                 startInteraction();
-              }, 10000);
-            }, 5000);
+              }, delay * 1000);
+            });
           }
         }
       });
