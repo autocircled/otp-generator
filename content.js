@@ -88,9 +88,7 @@ function setupWebsiteSpecificLogic() {
 }
   
 
-async function fetch_phone_number(API_KEY, country_id, operator_id, retryCount = 0) {
-  const maxRetries = 100;
-  
+async function fetch_phone_number(API_KEY, country_id, operator_id, retryCount = 0) {  
   try {
     const response = await fetch(`http://localhost:3099/api/call`, {
       method: 'POST',
@@ -113,12 +111,9 @@ async function fetch_phone_number(API_KEY, country_id, operator_id, retryCount =
     let ph_no = data.phone_number;
     
     if (!ph_no) {
-      if (retryCount < maxRetries) {
-        console.log(`No phone number received. Retrying... (Attempt ${retryCount + 1}/${maxRetries})`);
-        return fetch_phone_number(API_KEY, country_id, operator_id, retryCount + 1);
-      } else {
-        throw new Error('Max retry attempts reached. No phone number received after multiple attempts');
-      }
+      return setTimeout(() => {
+        fetch_phone_number(API_KEY, country_id, operator_id, retryCount + 1);
+      }, 10000);
     }
     const currentWebsite = getCurrentWebsite();
     console.log(`Starting interaction on: ${currentWebsite}`);
@@ -133,15 +128,9 @@ async function fetch_phone_number(API_KEY, country_id, operator_id, retryCount =
 
   } catch (error) {
     console.error('Error in fetch_phone_number:', error);
-    
-    console.error('Error in fetch_phone_number:', error);
-    if (retryCount < maxRetries) {
-      console.log(`Retrying after error... (Attempt ${retryCount + 1}/${maxRetries})`);
-      return fetch_phone_number(API_KEY, country_id, operator_id, retryCount + 1);
-    } else {
-      console.error('Max retry attempts reached after error');
-      // You might want to implement additional error handling here
-    }
+    return setTimeout(() => {
+      fetch_phone_number(API_KEY, country_id, operator_id, retryCount + 1);
+    }, 10000);
   }
 }
 
